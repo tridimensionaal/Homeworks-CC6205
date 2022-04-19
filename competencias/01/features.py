@@ -1,4 +1,16 @@
-class Lexicon():
+import codecs
+import numpy as np
+from abc import ABC, abstractmethod
+import nltk
+
+
+class Feature(ABC):
+    @abstractmethod
+    def get_feature(self, tweet: list):
+        pass
+
+
+class Lexicon(Feature):
     def __init__(self):
         self.lists_words = {}
         self.create_list_words("positive")
@@ -13,7 +25,8 @@ class Lexicon():
             list_words = map(lambda x: x.replace("\n", ""), f.readlines())
         self.lists_words[word_type] = list(list_words)
 
-    def get_positive_negative_words(self, tweet: list):
+    # override
+    def get_feature(self, tweet: list):
         negative_words = self.lists_words["negative"]
         positive_words = self.lists_words["positive"]
 
@@ -28,8 +41,9 @@ class Lexicon():
         return [positives, negatives]
 
 
-class ElongatedWords():
-    def get_elongated_words(self, tweet: list):
+class ElongatedWords(Feature):
+    # override
+    def get_feature(self, tweet: list):
 
         elongated_words = 0
 
@@ -48,18 +62,26 @@ class ElongatedWords():
         return [elongated_words]
 
 
-class CharsCount():
-    def get_relevant_chars(self, tweet: str):
-        num_hashtags = tweet.count('#')
-        num_exclamations = tweet.count('!')
-        num_interrogations = tweet.count('?')
-        num_at = tweet.count('@')
+class CharsCount(Feature):
+    # override
+    def get_feature(self, tweet: list):
+        num_hashtags = 0
+        num_exclamations = 0
+        num_interrogations = 0
+        num_at = 0
+
+        for word in tweet:
+            num_hashtags += word.count('#')
+            num_exclamations += word.count('!')
+            num_interrogations += word.count('?')
+            num_at += word.count('@')
 
         return [num_hashtags, num_exclamations, num_interrogations, num_at]
 
 
-class UpperCount():
-    def get_upper_words(self, tweet: list):
+class UpperCount(Feature):
+    # override
+    def get_feature(self, tweet: list):
         upper_count = 0
         for word in tweet:
             if word.isupper():
@@ -67,34 +89,33 @@ class UpperCount():
         return [upper_count]
 
 
-class CustomTransformer(BaseEstimator, TransformerMixin):
-    def __init__(self):
-        self.lexicon = Lexicon()
-        self.elongated_words = ElongatedWords()
-        self.chars_count = CharsCount()
-        self.upper_count = UpperCount()
-
+class CustomTransformer(ABC, BaseEstimator, TransformerMixin):
     def transform(self, X, y=None):
         chars = []
 
+        tokenizer = nltk.TweetTokenizer()
+
         for tweet in X:
-            split_tweet = tweet.split()
+            features = []
+            split_tweet = tokenizer.tokenize(tweet)
 
-            lexicon = self.lexicon.get_positive_negative_words(split_tweet)
+            for class_ in self.classes:
+                feature = class_().get_feature(split_tweet)
+                features += feature
 
-            elongated_words = self.elongated_words.get_elongated_words(
-                    split_tweet
-                    )
-
-            chars_count = self.chars_count.get_relevant_chars(tweet)
-
-            upper_count = self.upper_count.get_upper_words(split_tweet)
-
-            vect = lexicon + elongated_words + chars_count + upper_count
-
-            chars.append(vect)
+            chars.append(features)
 
         return np.array(chars)
 
     def fit(self, X, y=None):
         return self
+
+
+class AngryTransformer(CustomTransformer):
+    def __init__(self):
+        self.classes = [
+                Lexicon,
+                ElongatedWords,
+                CharsCount,
+                UpperCount
+                ]
