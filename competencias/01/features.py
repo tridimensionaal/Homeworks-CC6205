@@ -4,6 +4,9 @@ from abc import ABC, abstractmethod
 import nltk
 
 
+class CustomTokenizer:
+    def __init__(self):
+
 class Feature(ABC):
     @abstractmethod
     def get_feature(self, tweet: list):
@@ -90,6 +93,9 @@ class UpperCount(Feature):
 
 
 class CustomTransformer(ABC, BaseEstimator, TransformerMixin):
+    def __init__(self):
+        self.tokenizer = tokenizer
+
     def transform(self, X, y=None):
         chars = []
 
@@ -113,6 +119,8 @@ class CustomTransformer(ABC, BaseEstimator, TransformerMixin):
 
 class AngryTransformer(CustomTransformer):
     def __init__(self):
+        super(CustomTransformer, self).__init__
+
         self.classes = [
                 Lexicon,
                 ElongatedWords,
